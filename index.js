@@ -12,7 +12,11 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
-app.use('', bodyParser.urlencoded({
+app.use('/api/users', bodyParser.urlencoded({
+  extended: false
+}))
+
+app.use('/api/users/:_id/exercises', bodyParser.urlencoded({
   extended: false
 }))
 
@@ -29,8 +33,37 @@ app.post('/api/users', (req, res) => {
   });
 });
 
-app.post('', (req, res) => {
-
+// method that saves exercises of each user
+app.post('/api/users/:_id/exercises', (req, res) => {
+  let userId = req.body[':_id'];
+  if (isNaN(Number(userId))) {
+    User.findById({ _id: userId }, (err, data) => {
+      if (data == null) {
+        res.json({ error: 'user id not found' });
+      } else {
+        let justDate = (req.body.date) ? new Date(req.body.date) : new Date();
+        let newExercise = new Exercise({
+          user_id: userId,
+          description: req.body.description,
+          duration: Number(req.body.duration),
+          date: justDate.toDateString()
+        });
+        newExercise.save((err, exercise) => {
+          if (err) console.error(err);
+          console.log(exercise);
+          res.json({
+            _id: exercise.user_id,
+            username: data.username,
+            date: exercise.date,
+            duration: exercise.duration,
+            description: exercise.description
+          })
+        })
+      }
+    });
+  } else {
+    res.json({ error: 'invalid id' })
+  }
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
