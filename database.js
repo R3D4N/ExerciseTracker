@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
 const logSchema = new mongoose.Schema({
     user_id: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
     count: Number,
-    log: [{type: mongoose.Schema.Types.ObjectId, ref: 'Exercise'}]
+    log: [{description: String, duration: Number, date: String}]
 });
 
 const Exercise = mongoose.model('Exercise', exerciseSchema);
