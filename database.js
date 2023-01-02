@@ -12,7 +12,8 @@ const exerciseSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
-    username: String
+    username: String,
+    _id: mongoose.Schema.Types.ObjectId
 });
 
 const logSchema = new mongoose.Schema({
