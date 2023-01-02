@@ -33,6 +33,33 @@ app.post('/api/users', (req, res) => {
   });
 });
 
+function createLog(userId, description, duration, date){
+  Log.findOneAndUpdate({user_id: userId},{$inc:{count:1}, $push: {log: {description: description, duration: duration, date: date}}}, {new: true},(err, data)=>{
+    if (err) console.error(data);
+    if (data == null || data == undefined){
+      let newLog = new Log({
+        user_id: userId,
+        count: 1,
+        log:{
+          description: description,
+          duration: duration,
+          date: date
+        }
+      });
+      newLog.save((err, data)=>{
+        if (err) console.error(err);
+        console.log(data);
+      })
+    }else{
+      console.log(data)
+    }
+  })
+}
+
+app.get('/api/api',(req, res)=>{
+  createLog('63b2a6ea3f17ab4e6c19467a', 'sing', 20, "Mon Jan 05 2023")
+})
+
 // method that saves exercises of each user
 app.post('/api/users/:_id/exercises', (req, res) => {
   let userId = req.body[':_id'];
