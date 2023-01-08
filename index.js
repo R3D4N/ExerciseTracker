@@ -63,9 +63,10 @@ app.get('/api/api',(req, res)=>{
 // method that saves exercises of each user
 app.post('/api/users/:_id/exercises', (req, res) => {
   let userId = req.body[':_id'];
-  if (isNaN(Number(userId))) {
+  if (isNaN(userId)) {
     User.findById({ _id: userId }, (err, data) => {
-      if (data == null) {
+      if (err) console.error(err);
+      if (data == null || data == undefined) {
         res.json({ error: 'user id not found' });
       } else {
         let justDate = (req.body.date) ? new Date(req.body.date) : new Date();
@@ -76,15 +77,19 @@ app.post('/api/users/:_id/exercises', (req, res) => {
           date: justDate.toDateString()
         });
         newExercise.save((err, exercise) => {
-          if (err) console.error(err);
-          console.log(exercise);
-          res.json({
-            _id: exercise.user_id,
-            username: data.username,
-            date: exercise.date,
-            duration: exercise.duration,
-            description: exercise.description
-          })
+          if (err){
+            console.error(err);
+          }else{
+            console.log(exercise);
+            createLog(exercise.user_id, exercise.description, exercise.duration, exercise.date);
+            res.json({
+              _id: exercise.user_id,
+              username: data.username,
+              date: exercise.date,
+              duration: exercise.duration,
+              description: exercise.description
+            })
+          }
         })
       }
     });
@@ -92,6 +97,21 @@ app.post('/api/users/:_id/exercises', (req, res) => {
     res.json({ error: 'invalid id' })
   }
 });
+
+app.get('/api/users/:id/logs', (req, res)=>{
+  Log.findOne({user_id: req.params.id}).populate('user_id').exec((err, data)=>{
+    if (err){
+      console.error(err);
+    }else{
+      res.json({
+        _id: data.user_id._id,
+        username: data.user_id.username,
+        count: data.count,
+        log: data.log
+      });
+    }
+  });
+})
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
