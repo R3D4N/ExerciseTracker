@@ -1,7 +1,7 @@
 const express = require('express')
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const { Exercise, User, Log } = require('./database');
+const { Data } = require('./database');
 const app = express()
 //const cors = require('cors')
 require('dotenv').config()
@@ -22,9 +22,8 @@ app.use('/api/users/:_id/exercises', bodyParser.urlencoded({
 
 // method that saves user
 app.post('/api/users', (req, res) => {
-  let newUser = new User({
+  let newUser = new Data({
     username: req.body.username,
-    _id: new mongoose.Types.ObjectId()
   });
   newUser.save((err) => {
     if (err) console.error(err);
@@ -35,70 +34,43 @@ app.post('/api/users', (req, res) => {
 
 // shows each user that was saved in db
 app.get('/api/users', (req, res)=>{
-  User.find((err, data)=>{
+  Data.find((err, users)=>{
     if (err){
       console.error(err);
     }else{
-      res.json(data);
+      res.json(users);
     }
   });
 });
 
-function createLog(userId, description, duration, date){
-  Log.findOneAndUpdate({user_id: userId},{$inc:{count:1}, $push: {log: {description: description, duration: duration, date: date}}}, {new: true},(err, data)=>{
-    if (err) console.error(data);
-    if (data == null || data == undefined){
-      let newLog = new Log({
-        user_id: userId,
-        count: 1,
-        log:{
-          description: description,
-          duration: duration,
-          date: date
-        }
-      });
-      newLog.save((err, data)=>{
-        if (err) console.error(err);
-        console.log(data);
-      })
-    }else{
-      console.log(data)
-    }
-  })
-}
-
-app.get('/api/api',(req, res)=>{
-  createLog('63b2a6ea3f17ab4e6c19467a', 'sing', 20, "Mon Jan 05 2023")
-})
-
 // method that saves exercises of each user
 app.post('/api/users/:_id/exercises', (req, res) => {
-  let userId = req.body[':_id'];
-  if (isNaN(userId)) {
-    User.findById({ _id: userId }, (err, data) => {
+  let userId = req.params['_id'];
+  if (mongoose.Types.ObjectId.isValid(userId)) {
+    Data.findById({ _id: userId }, (err, user) => {
       if (err) console.error(err);
-      if (data == null || data == undefined) {
+      if (user == null || user == undefined) {
         res.json({ error: 'user id not found' });
       } else {
         let justDate = (req.body.date) ? new Date(req.body.date) : new Date();
-        let newExercise = new Exercise({
-          user_id: userId,
+        let newExercise = {
           description: req.body.description,
           duration: Number(req.body.duration),
           date: justDate.toDateString()
-        });
-        newExercise.save((err, exercise) => {
+        }
+        user.log.push(newExercise);
+        user.count += 1;
+        user.save((err, updatedUser) => {
           if (err){
             console.error(err);
           }else{
-            console.log(exercise);
-            createLog(exercise.user_id, exercise.description, exercise.duration, exercise.date);
+            console.log(updatedUser);
             res.json({
-              _id: exercise.user_id,
-              username: data.username,
-              date: exercise.date,
-              duration: exercise.duration,
-              description: exercise.description
+              username: updatedUser.username,
+              description: newExercise.description,
+              duration: newExercise.duration,
+              date: newExercise.date,
+              _id: updatedUser._id
             })
           }
         })
@@ -111,18 +83,49 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 
 // method that shows exercises of each user
 app.get('/api/users/:id/logs', (req, res)=>{
-  Log.findOne({user_id: req.params.id}).populate('user_id').exec((err, data)=>{
-    if (err){
-      console.error(err);
+  if( mongoose.Types.ObjectId.isValid(req.params.id)){
+    let {from, to, limit} = req.query
+    if(from === undefined && to === undefined && limit === undefined){
+      Data.findById({_id: req.params.id}).select({__v: 0}).exec((err, user)=>{
+        if (err){
+          console.error(err);
+        }else{
+          res.json(user);
+        }
+      });
     }else{
-      res.json({
-        _id: data.user_id._id,
-        username: data.user_id.username,
-        count: data.count,
-        log: data.log
+      Data.findById({_id: req.params.id}).exec((err, user)=>{
+        let correctDates=[]
+        from = from === undefined ? new Date(0) :new Date(from);
+        to = to === undefined ? new Date() :new Date(to);
+        limit = limit === undefined ? 1000 : Number(limit);
+
+        for(let i=0; i<user.count;i++){
+          if(from <= new Date(user.log[i].date) && new Date(user.log[i].date) <= to){
+            correctDates.push(user.log[i]);
+            if (correctDates.length >= limit){
+              break;
+            }
+          }
+        };
+
+        let newDate= correctDates.map((info)=>({
+          description: info.description,
+          duration: info.duration,
+          date: info.date
+        }))
+
+        res.json({
+          _id: user._id,
+          username: user.username,
+          count: correctDates.length,
+          log: newDate
+        })
       });
     }
-  });
+  }else{
+    res.json({error: 'not a valid user id'});
+  }
 })
 
 const listener = app.listen(process.env.PORT || 3000, () => {
