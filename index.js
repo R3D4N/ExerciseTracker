@@ -33,6 +33,17 @@ app.post('/api/users', (req, res) => {
   });
 });
 
+// shows each user that was saved in db
+app.get('/api/users', (req, res)=>{
+  User.find((err, data)=>{
+    if (err){
+      console.error(err);
+    }else{
+      res.json(data);
+    }
+  });
+});
+
 function createLog(userId, description, duration, date){
   Log.findOneAndUpdate({user_id: userId},{$inc:{count:1}, $push: {log: {description: description, duration: duration, date: date}}}, {new: true},(err, data)=>{
     if (err) console.error(data);
@@ -98,6 +109,7 @@ app.post('/api/users/:_id/exercises', (req, res) => {
   }
 });
 
+// method that shows exercises of each user
 app.get('/api/users/:id/logs', (req, res)=>{
   Log.findOne({user_id: req.params.id}).populate('user_id').exec((err, data)=>{
     if (err){
