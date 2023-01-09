@@ -82,11 +82,11 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 });
 
 // method that shows exercises of each user
-app.get('/api/users/:id/logs', (req, res)=>{
-  if( mongoose.Types.ObjectId.isValid(req.params.id)){
+app.get('/api/users/:_id/logs', (req, res)=>{
+  if( mongoose.Types.ObjectId.isValid(req.params._id)){
     let {from, to, limit} = req.query
     if(from === undefined && to === undefined && limit === undefined){
-      Data.findById({_id: req.params.id}).select({__v: 0}).exec((err, user)=>{
+      Data.findById({_id: req.params._id}).select({__v: 0}).exec((err, user)=>{
         if (err){
           console.error(err);
         }else{
@@ -94,33 +94,22 @@ app.get('/api/users/:id/logs', (req, res)=>{
         }
       });
     }else{
-      Data.findById({_id: req.params.id}).exec((err, user)=>{
-        let correctDates=[]
-        from = from === undefined ? new Date(0) :new Date(from);
-        to = to === undefined ? new Date() :new Date(to);
-        limit = limit === undefined ? 1000 : Number(limit);
+      Data.findById({_id: req.params._id}, (err, user)=>{
+        let correctinfo = user
+        from = from === undefined ? new Date(0) : new Date(from);
+        to = to === undefined ? new Date() : new Date(to);
 
-        for(let i=0; i<user.count;i++){
-          if(from <= new Date(user.log[i].date) && new Date(user.log[i].date) <= to){
-            correctDates.push(user.log[i]);
-            if (correctDates.length >= limit){
-              break;
-            }
-          }
-        };
-
-        let newDate= correctDates.map((info)=>({
-          description: info.description,
-          duration: info.duration,
-          date: info.date
-        }))
-
-        res.json({
-          _id: user._id,
-          username: user.username,
-          count: correctDates.length,
-          log: newDate
+        correctinfo.log = user.log.filter((info) => {
+          let infoDate = new Date(info.date);
+          return infoDate >= from && infoDate <= to;
         })
+
+        if (limit) {
+          correctinfo.log = correctinfo.log.slice(0, limit);
+        }
+        
+        correctinfo.count = correctinfo.log.lenght;
+        res.json(correctinfo);
       });
     }
   }else{
